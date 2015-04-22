@@ -73,3 +73,8 @@ DNS_REPLICAS=1
 
 # Admission Controllers to invoke prior to persisting objects in cluster
 ADMISSION_CONTROL=NamespaceLifecycle,NamespaceAutoProvision,LimitRanger,ResourceQuota
+
+MASTER_INTERNAL_IP=172.20.0.9
+MINION_INTERNAL_IP_PREFIX=172.20.0.1
+VPC_CIDR=172.20.0.0/16
+SUBNET_CIDR=172.20.0.0/24

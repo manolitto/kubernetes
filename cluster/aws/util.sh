@@ -25,8 +25,6 @@ export AWS_DEFAULT_REGION=${ZONE}
 AWS_CMD="aws --output json ec2"
 AWS_ELB_CMD="aws --output json elb"
 
-MASTER_INTERNAL_IP=172.20.0.9
-
 function json_val {
     python -c 'import json,sys;obj=json.load(sys.stdin);print obj'$1''
 }
@@ -372,7 +370,7 @@ function kube-up {
 
   if [[ -z "$VPC_ID" ]]; then
 	  echo "Creating vpc."
-	  VPC_ID=$($AWS_CMD create-vpc --cidr-block 172.20.0.0/16 | json_val '["Vpc"]["VpcId"]')
+	  VPC_ID=$($AWS_CMD create-vpc --cidr-block $VPC_CIDR | json_val '["Vpc"]["VpcId"]')
 	  $AWS_CMD modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-support '{"Value": true}' > $LOG
 	  $AWS_CMD modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-hostnames '{"Value": true}' > $LOG
 	  add-tag $VPC_ID Name kubernetes-vpc
@@ -383,7 +381,7 @@ function kube-up {
   SUBNET_ID=$($AWS_CMD describe-subnets | get_subnet_id $VPC_ID)
   if [[ -z "$SUBNET_ID" ]]; then
 	  echo "Creating subnet."
-	  SUBNET_ID=$($AWS_CMD create-subnet --cidr-block 172.20.0.0/24 --vpc-id $VPC_ID | json_val '["Subnet"]["SubnetId"]')
+	  SUBNET_ID=$($AWS_CMD create-subnet --cidr-block $SUBNET_CIDR --vpc-id $VPC_ID | json_val '["Subnet"]["SubnetId"]')
   fi
 
   echo "Using subnet $SUBNET_ID"
@@ -457,7 +455,7 @@ function kube-up {
     --iam-instance-profile Name=$IAM_PROFILE_MASTER \
     --instance-type $MASTER_SIZE \
     --subnet-id $SUBNET_ID \
-    --private-ip-address 172.20.0.9 \
+    --private-ip-address $MASTER_INTERNAL_IP \
     --key-name kubernetes \
     --security-group-ids $SEC_GROUP_ID \
     --associate-public-ip-address \
@@ -537,7 +535,7 @@ function kube-up {
       --iam-instance-profile Name=$IAM_PROFILE_MINION \
       --instance-type $MINION_SIZE \
       --subnet-id $SUBNET_ID \
-      --private-ip-address 172.20.0.1${i} \
+      --private-ip-address $MINION_INTERNAL_IP_PREFIX${i} \
       --key-name kubernetes \
       --security-group-ids $SEC_GROUP_ID \
       --associate-public-ip-address \
