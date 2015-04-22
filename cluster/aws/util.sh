@@ -40,7 +40,7 @@ function get_vpc_id {
 }
 
 function get_subnet_id {
-  python -c "import json,sys; lst = [str(subnet['SubnetId']) for subnet in json.load(sys.stdin)['Subnets'] if subnet['VpcId'] == '$1']; print ''.join(lst)"
+  python -c "import json,sys; lst = [str(subnet['SubnetId']) for subnet in json.load(sys.stdin)['Subnets'] for tag in subnet.get('Tags', []) if subnet['VpcId'] == '$1' and tag['Value'] == 'kubernetes-subnet']; print ''.join(lst)"
 }
 
 function get_igw_id {
@@ -382,6 +382,7 @@ function kube-up {
   if [[ -z "$SUBNET_ID" ]]; then
 	  echo "Creating subnet."
 	  SUBNET_ID=$($AWS_CMD create-subnet --cidr-block $SUBNET_CIDR --vpc-id $VPC_ID | json_val '["Subnet"]["SubnetId"]')
+	  add-tag $SUBNET_ID Name kubernetes-subnet
   fi
 
   echo "Using subnet $SUBNET_ID"
