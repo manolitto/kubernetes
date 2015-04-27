@@ -40,7 +40,7 @@ function get_vpc_id {
 }
 
 function get_subnet_id {
-  python -c "import json,sys; lst = [str(subnet['SubnetId']) for subnet in json.load(sys.stdin)['Subnets'] for tag in subnet.get('Tags', []) if subnet['VpcId'] == '$1' and tag['Value'] == 'kubernetes-subnet']; print ''.join(lst)"
+  python -c "import json,sys; lst = [str(subnet['SubnetId']) for subnet in json.load(sys.stdin)['Subnets'] for tag in subnet.get('Tags', []) if subnet['VpcId'] == '$1' and tag['Value'] == '${SUBNET_NAME}']; print ''.join(lst)"
 }
 
 function get_igw_id {
@@ -382,7 +382,7 @@ function kube-up {
   if [[ -z "$SUBNET_ID" ]]; then
 	  echo "Creating subnet."
 	  SUBNET_ID=$($AWS_CMD create-subnet --cidr-block $SUBNET_CIDR --vpc-id $VPC_ID | json_val '["Subnet"]["SubnetId"]')
-	  add-tag $SUBNET_ID Name kubernetes-subnet
+	  add-tag $SUBNET_ID Name ${SUBNET_NAME}
   fi
 
   echo "Using subnet $SUBNET_ID"
@@ -397,7 +397,11 @@ function kube-up {
   echo "Using Internet Gateway $IGW_ID"
 
   echo "Associating route table."
-  ROUTE_TABLE_ID=$($AWS_CMD describe-route-tables --filters Name=vpc-id,Values=$VPC_ID | json_val '["RouteTables"][0]["RouteTableId"]')
+  if [[ -z "$ROUTE_TABLE_NAME" ]]; then
+    ROUTE_TABLE_ID=$($AWS_CMD describe-route-tables --filters Name=vpc-id,Values=$VPC_ID | json_val '["RouteTables"][0]["RouteTableId"]')
+  else
+    ROUTE_TABLE_ID=$($AWS_CMD describe-route-tables --filters Name=vpc-id,Values=$VPC_ID --filters Name=tag:Name,Values=${ROUTE_TABLE_NAME}  | json_val '["RouteTables"][0]["RouteTableId"]')
+  fi
   $AWS_CMD associate-route-table --route-table-id $ROUTE_TABLE_ID --subnet-id $SUBNET_ID > $LOG || true
   echo "Configuring route table."
   $AWS_CMD describe-route-tables --filters Name=vpc-id,Values=$VPC_ID > $LOG || true
